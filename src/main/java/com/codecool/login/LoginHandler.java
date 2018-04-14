@@ -31,10 +31,12 @@ public class LoginHandler implements HttpHandler {
     @Override
     public void handle(HttpExchange httpExchange) throws IOException {
 
+        final String GET_METHOD = "GET";
+        final String POST_METHOD = "POST";
         String method = httpExchange.getRequestMethod();
         HttpCookie cookie;
 
-        if (method.equals("GET")) {
+        if (method.equals(GET_METHOD)) {
             String sessionCookie = httpExchange.getRequestHeaders().getFirst("Cookie");
             if (sessionCookie != null) {
                 cookie = HttpCookie.parse(sessionCookie).get(0);
@@ -46,54 +48,61 @@ public class LoginHandler implements HttpHandler {
             sendLoginPage(httpExchange);
         }
 
-        if (method.equals("POST")) {
-            InputStreamReader isr = new InputStreamReader(httpExchange.getRequestBody(), "utf-8");
-            BufferedReader br = new BufferedReader(isr);
-            String formData = br.readLine();
-            System.out.println(formData);
-
-            if (formData.contains("submit-login")) {
-
-                Pair<String, String> loginPassword = parseFormData(formData);
-
-                if (userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue()) != null) {
-
-                    sessionCounter++;
-                    String sessionId = Hashing.sha256().hashString(loginPassword.getKey() +
-                            Integer.toString(sessionCounter), Charsets.UTF_8).toString();
-                    User user = userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue());
-                    cookie = new HttpCookie("sessionId", sessionId);
-                    httpExchange.getResponseHeaders().add("Set-Cookie", cookie.toString());
-                    sessionsUsers.put(sessionId, user.getUserId());
-                    System.out.println(sessionsUsers.toString());
-                    sendPersonalizedPage(httpExchange, sessionId);
-
-                } else {
-                    sendLoginPage(httpExchange);
-                }
-
+        if (method.equals(POST_METHOD)) {
+            String formData = getFormData(httpExchange);
+            if (isUserLoggingIn(formData)) {
+                handleLoggingIn(httpExchange, formData);
             }
-            if (formData.contains("submit-logout")) {
-                String sessionCookie = httpExchange.getRequestHeaders().getFirst("Cookie");
-                if (sessionCookie != null) {
-                    cookie = HttpCookie.parse(sessionCookie).get(0);
-                    sessionsUsers.remove(cookie.getValue());
-                }
-                sendLoginPage(httpExchange);
+            if (isUserLoggingOut(formData)) {
+                handleLoggingOut(httpExchange);
             }
         }
+    }
+
+    private String getFormData(HttpExchange httpExchange) throws IOException {
+        InputStreamReader isr = new InputStreamReader(httpExchange.getRequestBody(), Charsets.UTF_8);
+        BufferedReader br = new BufferedReader(isr);
+        return br.readLine();
+    }
+
+    private void handleLoggingIn(HttpExchange httpExchange, String formData) throws IOException {
+
+        HttpCookie cookie;
+        Pair<String, String> loginPassword = parseLoginData(formData);
+
+        if (userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue()) != null) {
+
+            sessionCounter++;
+            String sessionId = Hashing.sha256().hashString(loginPassword.getKey() +
+                    Integer.toString(sessionCounter), Charsets.UTF_8).toString();
+            User user = userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue());
+            cookie = new HttpCookie("sessionId", sessionId);
+            httpExchange.getResponseHeaders().add("Set-Cookie", cookie.toString());
+            sessionsUsers.put(sessionId, user.getUserId());
+            System.out.println(sessionsUsers.toString());
+            sendPersonalizedPage(httpExchange, sessionId);
+
+        } else {
+            sendLoginPage(httpExchange);
+        }
+    }
+
+    private void handleLoggingOut(HttpExchange httpExchange) throws IOException {
+        HttpCookie cookie;
+        String sessionCookie = httpExchange.getRequestHeaders().getFirst("Cookie");
+        if (sessionCookie != null) {
+            cookie = HttpCookie.parse(sessionCookie).get(0);
+            sessionsUsers.remove(cookie.getValue());
+        }
+        sendLoginPage(httpExchange);
     }
 
     private void sendPersonalizedPage(HttpExchange httpExchange, String sessionId) throws IOException {
 
         JtwigTemplate template = JtwigTemplate.classpathTemplate("templates/template.twig");
         JtwigModel model = JtwigModel.newModel();
-
         int userId = sessionsUsers.get(sessionId);
-        System.out.println("User ID: " + userId);
         User user = userDAO.getById(userId);
-
-        System.out.println("User login: " + user.getLogin());
         model.with("userLogin", user.getLogin());
         String response = template.render(model);
         httpExchange.sendResponseHeaders(200, response.length());
@@ -107,7 +116,7 @@ public class LoginHandler implements HttpHandler {
         StaticHandler.sendFile(httpExchange, url);
     }
 
-    private Pair<String, String> parseFormData(String formData) throws UnsupportedEncodingException {
+    private Pair<String, String> parseLoginData(String formData) throws UnsupportedEncodingException {
 
         final int LOGIN_INDEX = 0;
         final int PASSWORD_INDEX = 1;
@@ -117,9 +126,22 @@ public class LoginHandler implements HttpHandler {
         List<String> values = new ArrayList<>();
         for(String pair : pairs){
             String[] keyValue = pair.split("=");
-            values.add(URLDecoder.decode(keyValue[VALUE_INDEX], "UTF-8"));
+            values.add(URLDecoder.decode(keyValue[VALUE_INDEX], Charsets.UTF_8.displayName()));
         }
-        String hashedPassword = Hashing.sha256().hashString(values.get(PASSWORD_INDEX), Charsets.UTF_8).toString();
-        return new Pair<>(values.get(LOGIN_INDEX), hashedPassword);
+        return new Pair<>(values.get(LOGIN_INDEX), makeSHA256Hash(values.get(PASSWORD_INDEX)));
+    }
+
+    private String makeSHA256Hash(String input) {
+        return Hashing.sha256().hashString(input, Charsets.UTF_8).toString();
+    }
+
+    private boolean isUserLoggingIn(String form) {
+        final String SUBMIT_LOGIN = "submit-login";
+        return form.contains(SUBMIT_LOGIN);
+    }
+
+    private boolean isUserLoggingOut(String form) {
+        final String SUBMIT_LOGOUT = "submit-logout";
+        return form.contains(SUBMIT_LOGOUT);
     }
 }
