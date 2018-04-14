@@ -51,22 +51,34 @@ public class LoginHandler implements HttpHandler {
             BufferedReader br = new BufferedReader(isr);
             String formData = br.readLine();
             System.out.println(formData);
-            Pair<String,String> loginPassword = parseFormData(formData);
 
-            if (userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue()) != null) {
+            if (formData.contains("submit-login")) {
 
-                sessionCounter++;
-                String sessionId = Hashing.sha256().hashString(loginPassword.getKey() +
-                        Integer.toString(sessionCounter), Charsets.UTF_8).toString();
-                User user = userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue());
-                cookie = new HttpCookie("sessionId", sessionId);
-                httpExchange.getResponseHeaders().add("Set-Cookie", cookie.toString());
-                sessionsUsers.put(sessionId, user.getUserId());
-                System.out.println(sessionsUsers.toString());
-                sendPersonalizedPage(httpExchange, sessionId);
+                Pair<String, String> loginPassword = parseFormData(formData);
 
-            } else {
-                // alert ?
+                if (userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue()) != null) {
+
+                    sessionCounter++;
+                    String sessionId = Hashing.sha256().hashString(loginPassword.getKey() +
+                            Integer.toString(sessionCounter), Charsets.UTF_8).toString();
+                    User user = userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue());
+                    cookie = new HttpCookie("sessionId", sessionId);
+                    httpExchange.getResponseHeaders().add("Set-Cookie", cookie.toString());
+                    sessionsUsers.put(sessionId, user.getUserId());
+                    System.out.println(sessionsUsers.toString());
+                    sendPersonalizedPage(httpExchange, sessionId);
+
+                } else {
+                    sendLoginPage(httpExchange);
+                }
+
+            }
+            if (formData.contains("submit-logout")) {
+                String sessionCookie = httpExchange.getRequestHeaders().getFirst("Cookie");
+                if (sessionCookie != null) {
+                    cookie = HttpCookie.parse(sessionCookie).get(0);
+                    sessionsUsers.remove(cookie.getValue());
+                }
                 sendLoginPage(httpExchange);
             }
         }

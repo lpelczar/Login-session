@@ -153,3 +153,8 @@ h2 {
     text-align: center;
     color: white;
 }
+
+.logout-container {
+    background: #456;
+    padding: 0;
+}
