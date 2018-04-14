@@ -3,6 +3,8 @@ package com.codecool.login;
 import com.codecool.login.data.SqliteUserDAO;
 import com.codecool.login.data.UserDAO;
 import com.codecool.login.models.User;
+import com.google.common.base.Charsets;
+import com.google.common.hash.Hashing;
 import com.google.common.io.Resources;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -103,6 +105,7 @@ public class LoginHandler implements HttpHandler {
             String[] keyValue = pair.split("=");
             values.add(URLDecoder.decode(keyValue[VALUE_INDEX], "UTF-8"));
         }
-        return new Pair<>(values.get(LOGIN_INDEX), values.get(PASSWORD_INDEX));
+        String hashedPassword = Hashing.sha256().hashString(values.get(PASSWORD_INDEX), Charsets.UTF_8).toString();
+        return new Pair<>(values.get(LOGIN_INDEX), hashedPassword);
     }
 }
