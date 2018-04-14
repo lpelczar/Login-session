@@ -83,7 +83,7 @@ public class LoginHandler implements HttpHandler {
             sendPersonalizedPage(httpExchange, sessionId);
 
         } else {
-            sendLoginPage(httpExchange);
+            sendLoggingErrorPage(httpExchange);
         }
     }
 
@@ -113,6 +113,11 @@ public class LoginHandler implements HttpHandler {
 
     private void sendLoginPage(HttpExchange httpExchange) throws IOException {
         URL url = Resources.getResource("static/index.html");
+        StaticHandler.sendFile(httpExchange, url);
+    }
+
+    private void sendLoggingErrorPage(HttpExchange httpExchange) throws IOException {
+        URL url = Resources.getResource("static/error.html");
         StaticHandler.sendFile(httpExchange, url);
     }
 
