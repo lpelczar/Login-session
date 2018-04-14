@@ -56,12 +56,14 @@ public class LoginHandler implements HttpHandler {
             if (userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue()) != null) {
 
                 sessionCounter++;
+                String sessionId = Hashing.sha256().hashString(loginPassword.getKey() +
+                        Integer.toString(sessionCounter), Charsets.UTF_8).toString();
                 User user = userDAO.getByLoginAndPassword(loginPassword.getKey(), loginPassword.getValue());
-                cookie = new HttpCookie("sessionId", String.valueOf(sessionCounter));
+                cookie = new HttpCookie("sessionId", sessionId);
                 httpExchange.getResponseHeaders().add("Set-Cookie", cookie.toString());
-                sessionsUsers.put(Integer.toString(sessionCounter), user.getUserId());
+                sessionsUsers.put(sessionId, user.getUserId());
                 System.out.println(sessionsUsers.toString());
-                sendPersonalizedPage(httpExchange, Integer.toString(sessionCounter));
+                sendPersonalizedPage(httpExchange, sessionId);
 
             } else {
                 // alert ?
