@@ -147,3 +147,9 @@ h2 {
 .login input[type="submit"]:focus {
     border-color: #05a;
 }
+
+.content h2 {
+    margin-top: 250px;
+    text-align: center;
+    color: white;
+}
