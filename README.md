@@ -25,7 +25,7 @@ browser and try to log in as user B. Check if those users can work separately.
 
 ## Sample screenshots
 
-![c1](http://i66.tinypic.com/2zyfqt0.png)
+![c1](https://raw.github.com/lpelczar/Login-session/master/session.png)
 
 ## More info
 
